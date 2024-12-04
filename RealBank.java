@@ -1,160 +1,205 @@
 import java.util.*;
 
 class Account {
-    String name, ph_no;
+    String name, phone;
 
-    Account(String name, String ph_no) {
+    Account(String name, String phone) {
         this.name = name;
-        this.ph_no = ph_no;
-    }
-}
-
-class SavingsAccount {
-
-    public void deposit(int amount,Map<Integer,Integer> bal,int key) {
-    	int amt = bal.get(key);
-        amt += amount;
-        bal.put(key, amt);
-    }
-
-    public void withdraw(int amount,Map<Integer,Integer> bal,int key) {
-    	int amt = balance(bal, key);
-        if (amount <= amt) {
-            amt -= amount;
-            bal.put(key, amt);
-        } else {
-            System.out.println("Insufficient Balance");
-        }
-    }
-
-    public int balance(Map<Integer,Integer> bal,int key) {
-        return bal.get(key);
+        this.phone = phone;
     }
 }
 
 class Activity {
     String status;
-    int transaction;
-    int remains;
+    int amount, balance;
 
-    Activity(String status, int transaction, int remains) {
+    Activity(String status, int amount, int balance) {
         this.status = status;
-        this.transaction = transaction;
-        this.remains = remains;
+        this.amount = amount;
+        this.balance = balance;
+    }
+}
+
+class BankOperations {
+    private final Map<Integer, Account> accounts = new HashMap<>();
+    private final Map<Integer, List<Activity>> transactions = new HashMap<>();
+    private final Map<Integer, Integer> balances = new HashMap<>();
+    private int accountIndex = 0;
+
+    public int createAccount(String name, String phone) {
+        Account account = new Account(name, phone);
+        accounts.put(accountIndex, account);
+        transactions.put(accountIndex, new ArrayList<>());
+        balances.put(accountIndex, 0);
+        return accountIndex++;
+    }
+
+    public boolean closeAccount(String name) {
+        for (int index : accounts.keySet()) {
+            if (accounts.get(index).name.equals(name)) {
+                accounts.remove(index);
+                transactions.remove(index);
+                balances.remove(index);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public Account getAccount(int index) {
+        return accounts.get(index);
+    }
+
+    public void deposit(int index, int amount) {
+        balances.put(index, balances.get(index) + amount);
+        addTransaction(index, "Credited", amount, balances.get(index));
+    }
+
+    public boolean withdraw(int index, int amount) {
+        int currentBalance = balances.get(index);
+        if (amount <= currentBalance) {
+            balances.put(index, currentBalance - amount);
+            addTransaction(index, "Debited", amount, balances.get(index));
+            return true;
+        }
+        return false;
+    }
+
+    public int getBalance(int index) {
+        return balances.get(index);
+    }
+
+    public List<Activity> getTransactionHistory(int index) {
+        return transactions.get(index);
+    }
+
+    private void addTransaction(int index, String status, int amount, int balance) {
+        transactions.get(index).add(new Activity(status, amount, balance));
     }
 }
 
 public class RealBank {
+    private static final Scanner sc = new Scanner(System.in);
+    private static final BankOperations bankOperations = new BankOperations();
 
     public static void main(String[] args) {
-        Scanner sc = new Scanner(System.in);
-        Map<Integer, Account> accDetails = new HashMap<>();
-        Map<Integer,List<Activity>> Trans = new HashMap<>();
-        Map<Integer,Integer> bal = new HashMap<>();
-        int index = 0; 
-
-        System.out.println("\t\t\t\t\t----------Welcome to Programmer's Bank----------");
+        System.out.println("\t\t\t---------- Welcome to Programmer's Bank ----------");
 
         while (true) {
-            menu();
-            System.out.println("Enter the option to continue....");
-            int input = sc.nextInt();
-            sc.nextLine();
-
-            if (input == 1) {
-                System.out.print("Enter your name: ");
-                String name = sc.nextLine();
-                System.out.print("Enter your phone number: ");
-                String ph_no = sc.nextLine();
-                Account acc = new Account(name, ph_no);
-                accDetails.put(index, acc);
-                Trans.put(index, new ArrayList<>());
-                bal.put(index,0);
-                System.out.println("Account Created Successfully !! and yours Unique account number is "+index);
-                index++;
-            } else if (input == 2) {
-                System.out.println("Welcome to Savings Account");
-                System.out.println("Enter the account index to login: ");
-                int accIndex = sc.nextInt();
-                sc.nextLine();
-                SavingsAccount sacc = new SavingsAccount();
-                Account acc = accDetails.get(accIndex);
-              
-                if (acc != null) {
-                    while (true) {
-                        menuSaving();
-                        int n = sc.nextInt();
-                        if (n == 1) {
-                            System.out.print("Enter the amount: ");
-                            int amount = sc.nextInt();
-                            sacc.deposit(amount,bal,accIndex);
-                            Activity at = new Activity("Credited", amount, sacc.balance(bal,accIndex));
-                            Trans.get(accIndex).add(at);
-                            System.out.println("Amount Credited: " + amount + ". Your Current Balance: " + sacc.balance(bal,accIndex));
-                        } else if (n == 2) {
-                            System.out.print("Enter the amount: ");
-                            int amount = sc.nextInt();
-                            sacc.withdraw(amount,bal,accIndex);
-                            if(amount <= bal.get(accIndex)) {
-                            Activity at = new Activity("Debited", amount, sacc.balance(bal,accIndex));
-                            Trans.get(accIndex).add(at);
-                            System.out.println("Amount Debited: " + amount + ". Your Current Balance: " + sacc.balance(bal,accIndex));
-                            }
-                        } else if (n == 3) {
-                            System.out.println("Transaction History:");
-                            for (Activity act : Trans.get(accIndex)) {
-                                System.out.println("Status: " + act.status + ", Transaction: " + act.transaction + ", Remaining Balance: " + act.remains);
-                            }
-                        } else if (n == 4) {
-                            System.out.println("Your Balance: " + bal.get(accIndex));
-                        } else if (n == 5) {
-                            break;
-                        }
-                    }
-                } else {
-                    System.out.println("No Account found, Create a new Account");
+            displayMainMenu();
+            int choice = getUserChoice();
+            switch (choice) {
+                case 1 -> handleAccountCreation();
+                case 2 -> handleSavingsAccount();
+                case 3 -> handleAccountClosure();
+                case 4 -> {
+                    System.out.println("---------- Thank You for Visiting! Visit Again! ----------");
+                    return;
                 }
-            } else if (input == 3) {
-                System.out.print("Enter your name: ");
-                String name = sc.nextLine();
-                boolean check = false;
-                for (int key : accDetails.keySet()) {
-                    if (accDetails.get(key).name.equals(name)) {
-                        accDetails.remove(key);
-                        Trans.remove(key);
-                        bal.remove(key);
-                        System.out.println("Account Closed Successfully");
-                        check = true;
-                        break;
-                    }
-                }
-                if (!check) {
-                    System.out.println("Account Not found, Check the name you entered");
-                }
-
-            } else if (input == 4) {
-                System.out.println("----------Thank You for Visiting, Visit Again !!----------");
-                break;
+                default -> System.out.println("Invalid Option. Please Try Again.");
             }
         }
     }
 
-    public static void menuSaving() {
-    	System.out.println();
-        System.out.println("1. Deposit");
-        System.out.println("2. Withdrawal");
-        System.out.println("3. Transaction History");
-        System.out.println("4. Balance Inquiry");
-        System.out.println("5. Exit");
-        System.out.println();
+    private static void displayMainMenu() {
+        System.out.println("""
+                \n1. Create Account
+                2. Savings Account
+                3. Close Account
+                4. Exit\n
+                """);
     }
 
-    public static void menu() {
-    	System.out.println();
-        System.out.println("1. Account Creation");
-        System.out.println("2. Savings Account");
-        System.out.println("3. Account closure");
-        System.out.println("4. Exit");
-        System.out.println();
+    private static void handleAccountCreation() {
+        System.out.print("Enter your name: ");
+        String name = sc.nextLine();
+        System.out.print("Enter your phone number: ");
+        String phone = sc.nextLine();
+        int accountNumber = bankOperations.createAccount(name, phone);
+        System.out.println("Account Created Successfully! Your Unique Account Number is: " + accountNumber);
+    }
+
+    private static void handleSavingsAccount() {
+        System.out.print("Enter your account number: ");
+        int accountIndex = sc.nextInt();
+        sc.nextLine();
+
+        Account account = bankOperations.getAccount(accountIndex);
+        if (account != null) {
+            while (true) {
+                displaySavingsMenu();
+                int choice = getUserChoice();
+                switch (choice) {
+                    case 1 -> handleDeposit(accountIndex);
+                    case 2 -> handleWithdrawal(accountIndex);
+                    case 3 -> displayTransactionHistory(accountIndex);
+                    case 4 -> displayBalance(accountIndex);
+                    case 5 -> {
+                        return;
+                    }
+                    default -> System.out.println("Invalid Option. Please Try Again.");
+                }
+            }
+        } else {
+            System.out.println("No account found with the provided number.");
+        }
+    }
+
+    private static void displaySavingsMenu() {
+        System.out.println("""
+                \n1. Deposit
+                2. Withdraw
+                3. Transaction History
+                4. Balance Inquiry
+                5. Exit\n
+                """);
+    }
+
+    private static void handleDeposit(int accountIndex) {
+        System.out.print("Enter the amount to deposit: ");
+        int amount = sc.nextInt();
+        bankOperations.deposit(accountIndex, amount);
+        System.out.println("Amount Deposited Successfully! Current Balance: " + bankOperations.getBalance(accountIndex));
+    }
+
+    private static void handleWithdrawal(int accountIndex) {
+        System.out.print("Enter the amount to withdraw: ");
+        int amount = sc.nextInt();
+        if (bankOperations.withdraw(accountIndex, amount)) {
+            System.out.println("Amount Withdrawn Successfully! Current Balance: " + bankOperations.getBalance(accountIndex));
+        } else {
+            System.out.println("Insufficient Balance.");
+        }
+    }
+
+    private static void displayTransactionHistory(int accountIndex) {
+        List<Activity> history = bankOperations.getTransactionHistory(accountIndex);
+        if (history.isEmpty()) {
+            System.out.println("No Transactions Found.");
+        } else {
+            System.out.println("Transaction History:");
+            for (Activity activity : history) {
+                System.out.printf("Status: %s, Amount: %d, Balance: %d%n", activity.status, activity.amount, activity.balance);
+            }
+        }
+    }
+
+    private static void displayBalance(int accountIndex) {
+        System.out.println("Your Current Balance: " + bankOperations.getBalance(accountIndex));
+    }
+
+    private static void handleAccountClosure() {
+        System.out.print("Enter your name: ");
+        String name = sc.nextLine();
+        if (bankOperations.closeAccount(name)) {
+            System.out.println("Account Closed Successfully.");
+        } else {
+            System.out.println("Account Not Found. Please Check the Name.");
+        }
+    }
+
+    private static int getUserChoice() {
+        System.out.print("Enter your choice: ");
+        return sc.nextInt();
     }
 }
